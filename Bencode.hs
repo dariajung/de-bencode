@@ -20,6 +20,7 @@ data BValue = BInt Integer
             | BStr B.ByteString
             | BList [BValue]
             | BDict [M.Map B.ByteString BValue]
+            deriving (Show, Eq, Ord)
 
 bencode :: BValue -> String
 bencode (BInt int) = "i" ++ show int ++ "e"
