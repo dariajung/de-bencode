@@ -10,6 +10,7 @@ import qualified Text.Parsec.ByteString as ParseBS
 import qualified Text.Parsec.Error as PError
 import qualified Text.Parsec.Combinator as Combinator
 import qualified Control.Monad as Monad
+import Data.Either.Combinators (fromRight)
 
 {- Bencode supports four different types of values:
     integers
@@ -96,3 +97,9 @@ kvPair = do
 -- returns IO (Either ParseError BValue) where BValue is BDict
 readBencodedFile :: String -> IO (Either PError.ParseError BValue)
 readBencodedFile = ParseBS.parseFromFile parseToBDict
+
+main :: IO ()
+main = do
+        torrentInfo <- (readBencodedFile "ubuntu.torrent")
+        let unwrapped = fromRight (BInt 0) torrentInfo
+        print unwrapped
