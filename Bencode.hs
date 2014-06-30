@@ -40,13 +40,13 @@ strToBS :: BValue -> B.ByteString
 strToBS = pack . bencode
 
 -- parse a Bencoded Integer
-parseInt :: ParseBS.Parser BValue
-parseInt = do 
+parseToBInt :: ParseBS.Parser BValue
+parseToBInt = do 
             PChar.char 'i'
             negative <- Combinator.option ' ' (PChar.char '-')
-            digs <- Combinator.many1 PChar.digit
+            digits <- Combinator.many1 PChar.digit
             PChar.char 'e'
-            make negative digs
+            make negative digits
 
             where 
                 make ' ' ['0'] = return (BInt 0)
@@ -54,3 +54,15 @@ parseInt = do
                 make _ ('0':xs) = Monad.fail "A number cannot have a leading zero."
                 make '-' xs = return (BInt (read ('-':xs) :: Integer))
                 make _ xs = return (BInt (read xs :: Integer))
+
+parseToBStr :: ParseBS.Parser BValue
+parseToBStr = do
+            digits <- Combinator.many1 PChar.digit
+            PChar.char ':'
+            make (read digits :: Int)
+
+            where make len = 
+                    do bstring <- Combinator.count len PChar.anyChar
+                       return (BStr (pack bstring))
+
+
