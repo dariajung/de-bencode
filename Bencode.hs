@@ -66,4 +66,32 @@ parseToBStr = do
                     do bstring <- Combinator.count len PChar.anyChar
                        return (BStr (pack bstring))
 
+-- parse to a Bencoded Dictionary
+parseToBDict :: ParseBS.Parser BValue
+parseToBDict = do
+                PChar.char 'd'
+                contents <- Combinator.many1 kvPair
+                PChar.char 'e'
+                make contents
 
+                where make contents = return (BDict (M.fromList contents))
+
+-- parse to a Bencoded List
+parseToBList :: ParseBS.Parser BValue
+parseToBList = do
+                PChar.char 'l'
+                contents <- Combinator.many1 (parseToBInt Prim.<|> parseToBStr Prim.<|> parseToBDict Prim.<|> parseToBList)
+                PChar.char 'e'
+                make contents
+
+                where make contents = return (BList (contents))
+
+-- parse to a (BValue, BValue) tuple
+kvPair :: ParseBS.Parser (BValue, BValue)
+kvPair = do 
+        key <- parseToBStr
+        value <- parseToBInt Prim.<|> parseToBStr Prim.<|> parseToBDict Prim.<|> parseToBList
+        return (key, value)
+
+readBencodedFile :: String -> IO (Either PError.ParseError BValue)
+readBencodedFile = ParseBS.parseFromFile parseToBDict
