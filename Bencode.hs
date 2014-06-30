@@ -19,10 +19,13 @@ import qualified Data.List as L
 data BValue = BInt Integer
             | BStr B.ByteString
             | BList [BValue]
-            | BDict [M.Map B.ByteString BValue]
+            | BDict (M.Map BValue BValue)
             deriving (Show, Eq, Ord)
 
 bencode :: BValue -> String
 bencode (BInt int) = "i" ++ show int ++ "e"
 bencode (BStr str) = show (B.length str) ++ ":" ++ (unpack str)
 bencode (BList xs) = "l" ++ L.concatMap bencode xs ++ "e"
+bencode (BDict dict) =
+    let f k v result = result ++ bencode k ++ ":" ++ bencode v
+    in (M.foldrWithKey f "d" dict) ++ "e"
