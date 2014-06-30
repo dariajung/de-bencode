@@ -93,5 +93,6 @@ kvPair = do
         value <- parseToBInt Prim.<|> parseToBStr Prim.<|> parseToBDict Prim.<|> parseToBList
         return (key, value)
 
+-- returns IO (Either ParseError BValue) where BValue is BDict
 readBencodedFile :: String -> IO (Either PError.ParseError BValue)
 readBencodedFile = ParseBS.parseFromFile parseToBDict
