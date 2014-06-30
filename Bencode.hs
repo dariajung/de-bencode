@@ -98,8 +98,8 @@ kvPair = do
 readBencodedFile :: String -> IO (Either PError.ParseError BValue)
 readBencodedFile = ParseBS.parseFromFile parseToBDict
 
-main :: IO ()
-main = do
+getBValue :: IO BValue
+getBValue = do
         torrentInfo <- (readBencodedFile "ubuntu.torrent")
         let unwrapped = fromRight (BDict (M.fromList [])) torrentInfo
-        print unwrapped
+        return unwrapped
