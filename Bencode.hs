@@ -39,7 +39,7 @@ bencode (BDict dict) =
 strToBS :: BValue -> B.ByteString
 strToBS = pack . bencode
 
--- parse a Bencoded Integer
+-- parse to a Bencoded Integer
 parseToBInt :: ParseBS.Parser BValue
 parseToBInt = do 
             PChar.char 'i'
@@ -55,6 +55,7 @@ parseToBInt = do
                 make '-' xs = return (BInt (read ('-':xs) :: Integer))
                 make _ xs = return (BInt (read xs :: Integer))
 
+-- parse to a Bencoded ByteString
 parseToBStr :: ParseBS.Parser BValue
 parseToBStr = do
             digits <- Combinator.many1 PChar.digit
