@@ -1,4 +1,4 @@
-de-bencode
+Hask-Bencode
 ==========
 
-Decode a bencoded string
+Parses torrent data (a bencoded dictionary) into user defined data type ```BValue```.
