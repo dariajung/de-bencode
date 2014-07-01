@@ -6,11 +6,15 @@ import qualified Data.Map as M
 import qualified Data.List as L
 import qualified Text.Parsec.Prim as Prim
 import qualified Text.Parsec.Char as PChar
-import qualified Text.Parsec.ByteString as ParseBS
+import qualified Text.Parsec.ByteString as ParseBS hiding (parseFromFile)
 import qualified Text.Parsec.Error as PError
 import qualified Text.Parsec.Combinator as Combinator
 import qualified Control.Monad as Monad
 import Data.Either.Combinators (fromRight)
+import Crypto.Hash.SHA1 (hashlazy, hash)
+import qualified Data.ByteString.Lazy as Lazy
+import System.Process (system)
+import Text.Printf (printf)
 
 {- Bencode supports four different types of values:
     integers
@@ -18,9 +22,6 @@ import Data.Either.Combinators (fromRight)
     lists
     dictionaries
 -}
-
--- should BStr take a normal String, or a ByteString? 
--- Not sure.
 
 data BValue = BInt Integer
             | BStr B.ByteString
@@ -33,8 +34,15 @@ bencode (BInt int) = "i" ++ show int ++ "e"
 bencode (BStr str) = show (B.length str) ++ ":" ++ (unpack str)
 bencode (BList xs) = "l" ++ L.concatMap bencode xs ++ "e"
 bencode (BDict dict) =
-    let f k v result = result ++ bencode k ++ ":" ++ bencode v
-    in (M.foldrWithKey f "d" dict) ++ "e"
+    let list = M.toList dict
+        applied = map (\(k, v) -> bencode k ++ bencode v) list
+        stringify (x:xs) = x ++ stringify xs
+        stringify [] = ""
+    in "d" ++ stringify applied ++ "e"
+
+    --let f k v result = result ++ bencode k ++ ":" ++ bencode v
+    --    list = map 
+    --in (M.foldrWithKey f "d" dict) ++ "e"
 
 -- take a BValue and return a ByteString representation of it
 strToBS :: BValue -> B.ByteString
@@ -96,10 +104,48 @@ kvPair = do
 
 -- returns IO (Either ParseError BValue) where BValue is BDict
 readBencodedFile :: String -> IO (Either PError.ParseError BValue)
-readBencodedFile = ParseBS.parseFromFile parseToBDict
+readBencodedFile = parseFromFile parseToBDict
 
+-- get BDict
 getBValue :: IO BValue
 getBValue = do
         torrentInfo <- (readBencodedFile "ubuntu.torrent")
         let unwrapped = fromRight (BDict (M.fromList [])) torrentInfo
         return unwrapped
+
+-- get the info_hash        
+getHash :: IO String
+getHash = do
+            (BDict dict) <- getBValue
+            let info = BStr (pack "info")
+                a@(BDict infoDict) = dict M.! info
+                bencoded = strToBS a
+                hashed = hash bencoded
+            return $ toHex hashed
+
+toHex :: B.ByteString -> String
+toHex bytes = unpack bytes >>= printf "%02x"
+
+parseData = do
+            (BDict dict) <- getBValue
+            let announce = BStr (pack "announce")
+                info = BStr (pack "info")
+                len = BStr (pack "length")
+                name = BStr (pack "name")
+                p_len = BStr (pack "piece length")
+                p = BStr (pack "pieces")
+                (BStr announceUrl) = dict M.! announce 
+                (BDict infoDict) = dict M.! info
+                (BInt _length) = infoDict M.! len
+                (BStr _name) = infoDict M.! name
+                (BInt pieceLength) = infoDict M.! p_len
+                (BStr pieces) = infoDict M.! p
+            return $ M.fromList [("announce", unpack announceUrl), 
+                                ("piece length", show pieceLength), 
+                                ("name", unpack _name), ("length", show _length), 
+                                ("pieces", unpack pieces)]
+
+parseFromFile :: Prim.Parsec B.ByteString () a -> String -> IO (Either PError.ParseError a)
+parseFromFile p fname
+    = do input <- B.readFile fname
+         return (Prim.runP p () fname input)
