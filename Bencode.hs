@@ -40,10 +40,6 @@ bencode (BDict dict) =
         stringify [] = ""
     in "d" ++ stringify applied ++ "e"
 
-    --let f k v result = result ++ bencode k ++ ":" ++ bencode v
-    --    list = map 
-    --in (M.foldrWithKey f "d" dict) ++ "e"
-
 -- take a BValue and return a ByteString representation of it
 strToBS :: BValue -> B.ByteString
 strToBS = pack . bencode
@@ -109,7 +105,7 @@ readBencodedFile = parseFromFile parseToBDict
 -- get BDict
 getBValue :: IO BValue
 getBValue = do
-        torrentInfo <- (readBencodedFile "torrents/ubuntu.torrent")
+        torrentInfo <- (readBencodedFile "torrents/speed.torrent")
         let unwrapped = fromRight (BDict (M.fromList [])) torrentInfo
         return unwrapped
 
@@ -133,25 +129,47 @@ peerID = do
         g <- Random.newStdGen
         return . (++) peerPrefix $ take 12 $ (Random.randomRs ('0', '9') g)
 
-parseData :: IO (M.Map [Char] [Char])
-parseData = do
+--addLengths :: [(BValue, BValue)] -> Integer
+getBInts :: [(BValue, a)] -> [a]
+getBInts [] = []
+getBInts ((k, v):xs) = if k == (BStr $ pack "length") then v : getBInts xs else getBInts xs
+
+sumBInts :: [BValue] -> Integer
+sumBInts ((BInt x):xs) = x + sumBInts xs
+sumBInts [] = 0
+
+isMult :: IO Bool
+isMult = do 
+            (BDict dict) <- getBValue
+            let info = BStr (pack "info")
+                f = BStr (pack "files")
+                (BDict infoDict) = dict M.! info
+            return $ M.member f infoDict
+
+parseDataMultiple :: IO (M.Map [Char] [Char])
+parseDataMultiple = do
+                    (BDict dict) <- getBValue
+                    let announce = BStr (pack "announce")
+                        info = BStr (pack "info")
+                        f = BStr (pack "files")
+                        (BStr announceUrl) = dict M.! announce
+                        (BDict infoDict) = dict M.! info
+                        (BList files) = infoDict M.! f
+                        flattened = concat $ map (\(BDict x) -> M.toList x) files
+                        totalLength = sumBInts $ getBInts flattened
+                    return $ M.fromList [("announce", unpack announceUrl), ("length", show totalLength)]
+
+parseDataSingle :: IO (M.Map [Char] [Char])
+parseDataSingle = do
             (BDict dict) <- getBValue
             let announce = BStr (pack "announce")
                 info = BStr (pack "info")
                 len = BStr (pack "length")
-                name = BStr (pack "name")
-                p_len = BStr (pack "piece length")
-                p = BStr (pack "pieces")
                 (BStr announceUrl) = dict M.! announce 
                 (BDict infoDict) = dict M.! info
                 (BInt _length) = infoDict M.! len
-                (BStr _name) = infoDict M.! name
-                (BInt pieceLength) = infoDict M.! p_len
-                (BStr pieces) = infoDict M.! p
             return $ M.fromList [("announce", unpack announceUrl), 
-                                ("piece length", show pieceLength), 
-                                ("name", unpack _name), ("length", show _length), 
-                                ("pieces", unpack pieces)]
+                                ("length", show _length)]
 
 parseFromFile :: Prim.Parsec B.ByteString () a -> String -> IO (Either PError.ParseError a)
 parseFromFile p fname
