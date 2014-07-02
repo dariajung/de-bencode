@@ -109,7 +109,7 @@ readBencodedFile = parseFromFile parseToBDict
 -- get BDict
 getBValue :: IO BValue
 getBValue = do
-        torrentInfo <- (readBencodedFile "ubuntu.torrent")
+        torrentInfo <- (readBencodedFile "torrents/ubuntu.torrent")
         let unwrapped = fromRight (BDict (M.fromList [])) torrentInfo
         return unwrapped
 
