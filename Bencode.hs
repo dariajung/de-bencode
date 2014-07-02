@@ -1,3 +1,5 @@
+{-# LANGUAGE NoMonomorphismRestriction #-}
+
 module Bencode where
 
 import Data.ByteString.Char8 (pack, unpack)
@@ -103,6 +105,8 @@ kvPair = do
 readBencodedFile :: String -> IO (Either PError.ParseError BValue)
 readBencodedFile = parseFromFile parseToBDict
 
+readBencodedString str = parseFromString parseToBDict (pack str)
+
 -- get BDict
 getBValue :: IO BValue
 getBValue = do
@@ -123,7 +127,7 @@ getHash = do
 toHex :: B.ByteString -> String
 toHex bytes = unpack bytes >>= printf "%02x"
 
---addPercents :: String -> String
+addPercents :: String -> String
 addPercents str = "%" ++ (init $ concat $ map (\x -> x ++ "%") (chunksOf 2 str))
 
 -- following the azeureus style for generating a peer_id
@@ -179,3 +183,7 @@ parseFromFile :: Prim.Parsec B.ByteString () a -> String -> IO (Either PError.Pa
 parseFromFile p fname
     = do input <- B.readFile fname
          return (Prim.runP p () fname input)
+
+parseFromString p str = do
+                        let fname = "return_data"
+                        return (Prim.runP p () fname str)
