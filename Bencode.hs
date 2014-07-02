@@ -6,6 +6,7 @@ import Data.ByteString.Char8 (pack, unpack)
 import qualified Data.ByteString as B
 import qualified Data.Map as M
 import qualified Data.List as L
+import Data.List.Split (splitOn)
 import qualified Text.Parsec.Prim as Prim
 import qualified Text.Parsec.Char as PChar
 import qualified Text.Parsec.ByteString as ParseBS hiding (parseFromFile)
@@ -187,6 +188,15 @@ parseDataSingle = do
             return $ M.fromList [("announce", unpack announceUrl), 
                                 ("length", show _length)]
 
+bstr = "J\212\183\186\SUB\226P^L\ACKH\\Z6m\212\134\163\174\STX\168$w$"
+
+-- parse peer data
+parseBinaryModel str = 
+                    let dList = chunksOf 6 $ map show (B.unpack $ pack str)
+                        digest [] = []
+                        digest (x:xs) = (L.intercalate "." $ take 4 x, (read (x !! 4) :: Integer) * 256 + (read (x !! 5) :: Integer)) : digest xs
+                        in (digest dList)
+                    
 parseFromFile :: Prim.Parsec B.ByteString () a -> String -> IO (Either PError.ParseError a)
 parseFromFile p fname
     = do input <- B.readFile fname

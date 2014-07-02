@@ -2,7 +2,8 @@ import qualified Network.HTTP as HTTP
 import qualified Network.HTTP.Base as Base
 import qualified Bencode as Bencode
 import qualified Data.Map as M
-import Data.URLEncoded
+import qualified Data.ByteString as B
+import Data.ByteString.Char8 (pack, unpack)
 
 -- form initial request URL to tracker
 getRequestURL = do
