@@ -107,17 +107,22 @@ readBencodedFile = parseFromFile parseToBDict
 
 readBencodedString str = parseFromString parseToBDict (pack str)
 
--- get BDict
-getBValue :: IO BValue
-getBValue = do
-        torrentInfo <- (readBencodedFile "torrents/speed.torrent")
-        let unwrapped = fromRight (BDict (M.fromList [])) torrentInfo
-        return unwrapped
+{- get BDict
+
+filetype can be "file" or "string"
+"file": path to file
+"string": actual string to be read
+
+-}
+getBValue fileType source = do
+                    bencodeInfo <- if fileType == "string" then readBencodedString source else readBencodedFile source
+                    let unwrapped = fromRight (BDict (M.fromList [])) bencodeInfo
+                    return unwrapped
 
 -- get the info_hash        
 getHash :: IO String
 getHash = do
-            (BDict dict) <- getBValue
+            (BDict dict) <- getBValue "file" "torrents/ubuntu.torrent"
             let info = BStr (pack "info")
                 a@(BDict infoDict) = dict M.! info
                 bencoded = strToBS a
@@ -146,17 +151,19 @@ sumBInts :: [BValue] -> Integer
 sumBInts ((BInt x):xs) = x + sumBInts xs
 sumBInts [] = 0
 
+-- checks if torrent is for multiple files or a single file
 isMult :: IO Bool
 isMult = do 
-            (BDict dict) <- getBValue
+            (BDict dict) <- getBValue "file" "torrents/ubuntu.torrent"
             let info = BStr (pack "info")
                 f = BStr (pack "files")
                 (BDict infoDict) = dict M.! info
             return $ M.member f infoDict
 
+-- parse torrents with multiple files
 parseDataMultiple :: IO (M.Map [Char] [Char])
 parseDataMultiple = do
-                    (BDict dict) <- getBValue
+                    (BDict dict) <- (getBValue "file" "torrents/ubuntu.torrent")
                     let announce = BStr (pack "announce")
                         info = BStr (pack "info")
                         f = BStr (pack "files")
@@ -167,9 +174,10 @@ parseDataMultiple = do
                         totalLength = sumBInts $ getBInts flattened
                     return $ M.fromList [("announce", unpack announceUrl), ("length", show totalLength)]
 
+-- parse torrents with single files
 parseDataSingle :: IO (M.Map [Char] [Char])
 parseDataSingle = do
-            (BDict dict) <- getBValue
+            (BDict dict) <- (getBValue "file" "torrents/ubuntu.torrent")
             let announce = BStr (pack "announce")
                 info = BStr (pack "info")
                 len = BStr (pack "length")
