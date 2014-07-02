@@ -13,8 +13,8 @@ import qualified Control.Monad as Monad
 import Data.Either.Combinators (fromRight)
 import Crypto.Hash.SHA1 (hashlazy, hash)
 import qualified Data.ByteString.Lazy as Lazy
-import System.Process (system)
 import Text.Printf (printf)
+import qualified System.Random as Random
 
 {- Bencode supports four different types of values:
     integers
@@ -126,6 +126,14 @@ getHash = do
 toHex :: B.ByteString -> String
 toHex bytes = unpack bytes >>= printf "%02x"
 
+-- following the azeureus style for generating a peer_id
+peerID :: IO String
+peerID = do
+        let peerPrefix = "-HT0001-"
+        g <- Random.newStdGen
+        return . (++) peerPrefix $ take 12 $ (Random.randomRs ('0', '9') g)
+
+parseData :: IO (M.Map [Char] [Char])
 parseData = do
             (BDict dict) <- getBValue
             let announce = BStr (pack "announce")
