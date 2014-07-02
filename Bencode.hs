@@ -15,6 +15,7 @@ import Crypto.Hash.SHA1 (hashlazy, hash)
 import qualified Data.ByteString.Lazy as Lazy
 import Text.Printf (printf)
 import qualified System.Random as Random
+import Data.List.Split (chunksOf)
 
 {- Bencode supports four different types of values:
     integers
@@ -117,10 +118,13 @@ getHash = do
                 a@(BDict infoDict) = dict M.! info
                 bencoded = strToBS a
                 hashed = hash bencoded
-            return $ toHex hashed
+            return $ addPercents $ toHex hashed
 
 toHex :: B.ByteString -> String
 toHex bytes = unpack bytes >>= printf "%02x"
+
+--addPercents :: String -> String
+addPercents str = "%" ++ (init $ concat $ map (\x -> x ++ "%") (chunksOf 2 str))
 
 -- following the azeureus style for generating a peer_id
 peerID :: IO String

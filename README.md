@@ -6,6 +6,7 @@ Currently a work in progress.
 Done:
 
 - Bencode parser: able to get information from torrent files, and have successfully gotten correct info_hashes
+- Distinguish between single file and multi file torrents.
 
 
 To Do:
