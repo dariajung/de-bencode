@@ -1,3 +1,6 @@
+
+module Protocol where
+
 import qualified Network.HTTP as HTTP
 import qualified Network.HTTP.Base as Base
 import qualified Bencode as Bencode
@@ -11,7 +14,8 @@ import qualified Network.Socket.ByteString as NB
 import qualified Network as N
 import System.IO
 import Text.Printf
-import Data.Char (chr)
+import Data.Char (chr, ord)
+import Data.IORef
 
 main :: IO ()
 main = do
@@ -31,8 +35,18 @@ sendHandshake handle = do
 
 recvHandshake :: Handle -> IO()
 recvHandshake handle = do
-                        handshake <- B.hGet handle 1000
-                        print handshake
+                        pStrLen <- B.hGet handle 1
+                        pStr <- B.hGet handle (fromIntegral $ (B.unpack pStrLen) !! 0)
+                        reserved <- B.hGet handle 8
+                        peer_id <- B.hGet handle 20
+                        info_hash <- B.hGet handle 20
+                        case (C.unpack pStr) == "BitTorrent protocol" of
+                            True -> do 
+                                    am_choking <- newIORef True
+                                    am_interested <- newIORef False
+                                    peer_choking <- True
+                                    peer_interested <- False
+
 
 generateHandshake :: IO C.ByteString
 generateHandshake = do
