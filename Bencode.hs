@@ -187,15 +187,6 @@ parseDataSingle = do
                 (BInt _length) = infoDict M.! len
             return $ M.fromList [("announce", unpack announceUrl), 
                                 ("length", show _length)]
-
-bstr = "J\212\183\186\SUB\226P^L\ACKH\\Z6m\212\134\163\174\STX\168$w$"
-
--- parse peer data
-parseBinaryModel str = 
-                    let dList = chunksOf 6 $ map show (B.unpack $ pack str)
-                        digest [] = []
-                        digest (x:xs) = (L.intercalate "." $ take 4 x, (read (x !! 4) :: Integer) * 256 + (read (x !! 5) :: Integer)) : digest xs
-                        in (digest dList)
                     
 parseFromFile :: Prim.Parsec B.ByteString () a -> String -> IO (Either PError.ParseError a)
 parseFromFile p fname
