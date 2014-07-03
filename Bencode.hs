@@ -128,7 +128,7 @@ getHash = do
                 a@(BDict infoDict) = dict M.! info
                 bencoded = strToBS a
                 hashed = hash bencoded
-            return $ addPercents $ toHex hashed
+            return $ toHex hashed
 
 toHex :: B.ByteString -> String
 toHex bytes = unpack bytes >>= printf "%02x"
