@@ -16,8 +16,10 @@ import System.IO
 import Text.Printf
 import Data.Char (chr, ord)
 import Data.IORef
+import qualified Peer as Peer
+import qualified Control.Monad as Monad
 
-main :: IO ()
+--main :: IO ()
 main = do
         peerInfo <- getPeerData
         let (ipAddr, portNum) = head peerInfo
@@ -33,20 +35,30 @@ sendHandshake handle = do
                         handshake <- generateHandshake
                         C.hPutStr handle handshake
 
-recvHandshake :: Handle -> IO()
+recvHandshake :: Handle -> IO Peer.ActivePeer
 recvHandshake handle = do
-                        pStrLen <- B.hGet handle 1
-                        pStr <- B.hGet handle (fromIntegral $ (B.unpack pStrLen) !! 0)
-                        reserved <- B.hGet handle 8
-                        peer_id <- B.hGet handle 20
-                        info_hash <- B.hGet handle 20
-                        case (C.unpack pStr) == "BitTorrent protocol" of
-                            True -> do 
-                                    am_choking <- newIORef True
-                                    am_interested <- newIORef False
-                                    peer_choking <- True
-                                    peer_interested <- False
-
+            pStrLen <- B.hGet handle 1
+            pStr <- B.hGet handle (fromIntegral $ (B.unpack pStrLen) !! 0)
+            reserved <- B.hGet handle 8
+            peer_id <- B.hGet handle 20
+            info_hash <- B.hGet handle 20
+            case (C.unpack pStr) == "BitTorrent protocol" of
+                True -> do 
+                        amChoking <- newIORef True
+                        amInterested <- newIORef False
+                        peerChoking <- newIORef True
+                        peerInterested <- newIORef False
+                        -- pBitField
+                        -- pWanted
+                        return Peer.ActivePeer {
+                            Peer.pID = peer_id,
+                            Peer.pHandle = handle,
+                            Peer.pAmChoking = amChoking,
+                            Peer.pAmInterested = amInterested,
+                            Peer.pChoking = peerChoking,
+                            Peer.pInterested = peerInterested
+                        }
+                False -> error ("Peer is not using the BitTorrent protocol. Exiting.")
 
 generateHandshake :: IO C.ByteString
 generateHandshake = do
