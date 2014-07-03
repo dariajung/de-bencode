@@ -121,14 +121,14 @@ getBValue fileType source = do
                     return unwrapped
 
 -- get the info_hash        
-getHash :: IO String
+--getHash :: IO String
 getHash = do
             (BDict dict) <- getBValue "file" "torrents/ubuntu.torrent"
             let info = BStr (pack "info")
                 a@(BDict infoDict) = dict M.! info
                 bencoded = strToBS a
                 hashed = hash bencoded
-            return $ toHex hashed
+            return $ hashed
 
 toHex :: B.ByteString -> String
 toHex bytes = unpack bytes >>= printf "%02x"

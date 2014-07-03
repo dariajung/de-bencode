@@ -26,19 +26,23 @@ main = do
 
 sendHandshake :: Handle -> IO ()
 sendHandshake handle = do
-                        info_hash <- Bencode.getHash
-                        let pstrlen = B.singleton (fromIntegral 19)
-                            pstr = C.pack "BitTorrent Protocol"
-                            reserved = B.replicate 8 (fromIntegral 0)
-                            peer_id = C.pack "-HT0001-560535105852"
-                            hMsg = B.concat [pstrlen, pstr, reserved, C.pack info_hash, peer_id]
-                        print hMsg
-                        C.hPutStr handle hMsg
+                        handshake <- generateHandshake
+                        C.hPutStr handle handshake
 
 recvHandshake :: Handle -> IO()
 recvHandshake handle = do
                         handshake <- B.hGet handle 1000
                         print handshake
+
+generateHandshake :: IO C.ByteString
+generateHandshake = do
+                    info_hash <- Bencode.getHash
+                    let pstrlen = B.singleton (fromIntegral 19)
+                        pstr = C.pack "BitTorrent protocol"
+                        reserved = B.replicate 8 (fromIntegral 0)
+                        peer_id = C.pack "-HT0001-560535105852"
+                        hMsg = B.concat [pstrlen, pstr, reserved, info_hash, peer_id]
+                    return hMsg
 
 -- form initial request URL to tracker
 getRequestURL = do
@@ -51,7 +55,7 @@ getRequestURL = do
                     or just put into a config file? --}
                 let announce = (dict M.! "announce") 
                     left = (dict M.! "length")
-                    urlEncodedHash = Bencode.addPercents hash
+                    urlEncodedHash = Bencode.addPercents (Bencode.toHex hash)
                     encoded = Base.urlEncodeVars 
                                 [("peer_id", "-HT0001-560535105852"), 
                                 ("left", left), 
