@@ -3,7 +3,7 @@ module Protocol where
 
 import qualified Network.HTTP as HTTP
 import qualified Network.HTTP.Base as Base
-import qualified Bencode as Bencode
+import Bencode
 import qualified Data.Map as M
 import qualified Data.ByteString as B
 import qualified Data.ByteString.Char8 as C
@@ -18,8 +18,9 @@ import Data.Char (chr, ord)
 import Data.IORef
 import qualified Peer as Peer
 import qualified Control.Monad as Monad
+import Metadata
+import qualified Config as Config
 
---main :: IO ()
 main = do
         peerInfo <- getPeerData
         let (ipAddr, portNum) = head peerInfo
@@ -62,7 +63,7 @@ recvHandshake handle = do
 
 generateHandshake :: IO C.ByteString
 generateHandshake = do
-                    info_hash <- Bencode.getHash
+                    info_hash <- getHash
                     let pstrlen = B.singleton (fromIntegral 19)
                         pstr = C.pack "BitTorrent protocol"
                         reserved = B.replicate 8 (fromIntegral 0)
@@ -72,25 +73,24 @@ generateHandshake = do
 
 -- form initial request URL to tracker
 getRequestURL = do
-                multipleFiles <- Bencode.isMult
-                dict <- if multipleFiles then Bencode.parseDataMultiple else Bencode.parseDataSingle
-                hash <- Bencode.getHash 
+                multipleFiles <- isMult
+                metaData <- if multipleFiles then parseDataMultiple else parseDataSingle
+                hash <- getHash 
                 {-- need to figure out how to capture state
-                    peerID <- Bencode.peerID
+                    peerID <- 
+                    peerID
                     so for time being, hardcoding peer_id
                     or just put into a config file? --}
-                let announce = (dict M.! "announce") 
-                    left = (dict M.! "length")
-                    urlEncodedHash = Bencode.addPercents (Bencode.toHex hash)
-                    encoded = Base.urlEncodeVars 
-                                [("peer_id", "-HT0001-560535105852"), 
-                                ("left", left), 
-                                ("port", "6882"),
-                                ("compact", "1"),
-                                ("uploaded", "0"),
-                                ("downloaded", "0"),
-                                ("event", "started")]
-                return $ announce ++ "?" ++ "info_hash=" ++ urlEncodedHash ++ "&" ++ encoded
+                let urlEncodedHash = addPercents $ toHex hash
+                    params = Base.urlEncodeVars 
+                            [("peer_id", "-HT0001-560535105852"), 
+                            ("left", (tLen metaData)), 
+                            ("port", "6882"),
+                            ("compact", "1"),
+                            ("uploaded", "0"),
+                            ("downloaded", "0"),
+                            ("event", "started")]
+                return $ (announce metaData) ++ "?" ++ "info_hash=" ++ urlEncodedHash ++ "&" ++ params
 
 -- get back response from tracker
 getResponse = do
@@ -99,15 +99,15 @@ getResponse = do
 
 trackerResponseToDict = do
                     response <- getResponse
-                    (Bencode.BDict dict) <- Bencode.getBValue "string" response
-                    let complete = Bencode.BStr (C.pack "complete")
-                        incomplete = Bencode.BStr (C.pack "incomplete")
-                        intvl = Bencode.BStr (C.pack "interval")
-                        prs = Bencode.BStr (C.pack "peers")
-                        (Bencode.BInt seeders) = dict M.! complete
-                        (Bencode.BInt leechers) = dict M.! incomplete
-                        (Bencode.BInt interval) = dict M.! intvl
-                        (Bencode.BStr peers) = dict M.! prs
+                    (BDict dict) <- getBValue "string" response
+                    let complete = BStr (C.pack "complete")
+                        incomplete = BStr (C.pack "incomplete")
+                        intvl = BStr (C.pack "interval")
+                        prs = BStr (C.pack "peers")
+                        (BInt seeders) = dict M.! complete
+                        (BInt leechers) = dict M.! incomplete
+                        (BInt interval) = dict M.! intvl
+                        (BStr peers) = dict M.! prs
                     return $ M.fromList [("complete", show seeders), 
                                         ("incomplete", show leechers), 
                                         ("interval", show interval),

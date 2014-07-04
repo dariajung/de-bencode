@@ -19,6 +19,8 @@ import qualified Data.ByteString.Lazy as Lazy
 import Text.Printf (printf)
 import qualified System.Random as Random
 import Data.List.Split (chunksOf)
+import Metadata
+import qualified Config as Config
 
 {- Bencode supports four different types of values:
     integers
@@ -123,7 +125,7 @@ getBValue fileType source = do
 -- get the info_hash        
 --getHash :: IO String
 getHash = do
-            (BDict dict) <- getBValue "file" "torrents/ubuntu.torrent"
+            (BDict dict) <- getBValue "file" Config.torrent
             let info = BStr (pack "info")
                 a@(BDict infoDict) = dict M.! info
                 bencoded = strToBS a
@@ -162,9 +164,9 @@ isMult = do
             return $ M.member f infoDict
 
 -- parse torrents with multiple files
-parseDataMultiple :: IO (M.Map [Char] [Char])
+parseDataMultiple :: IO Metadata
 parseDataMultiple = do
-                    (BDict dict) <- (getBValue "file" "torrents/ubuntu.torrent")
+                    (BDict dict) <- (getBValue "file" Config.torrent)
                     let announce = BStr (pack "announce")
                         info = BStr (pack "info")
                         f = BStr (pack "files")
@@ -173,21 +175,26 @@ parseDataMultiple = do
                         (BList files) = infoDict M.! f
                         flattened = concat $ map (\(BDict x) -> M.toList x) files
                         totalLength = sumBInts $ getBInts flattened
-                    return $ M.fromList [("announce", unpack announceUrl), ("length", show totalLength)]
+                    return Metadata {
+                        announce = unpack announceUrl,
+                        tLen = show totalLength
+                    }
 
 -- parse torrents with single files
-parseDataSingle :: IO (M.Map [Char] [Char])
+parseDataSingle :: IO Metadata
 parseDataSingle = do
-            (BDict dict) <- (getBValue "file" "torrents/ubuntu.torrent")
+            (BDict dict) <- (getBValue "file" Config.torrent)
             let announce = BStr (pack "announce")
                 info = BStr (pack "info")
                 len = BStr (pack "length")
                 (BStr announceUrl) = dict M.! announce 
                 (BDict infoDict) = dict M.! info
                 (BInt _length) = infoDict M.! len
-            return $ M.fromList [("announce", unpack announceUrl), 
-                                ("length", show _length)]
-                    
+            return Metadata {
+                announce = unpack announceUrl,
+                tLen = show _length
+            }         
+
 parseFromFile :: Prim.Parsec B.ByteString () a -> String -> IO (Either PError.ParseError a)
 parseFromFile p fname
     = do input <- B.readFile fname
