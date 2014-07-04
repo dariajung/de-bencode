@@ -3,23 +3,24 @@ module Protocol where
 
 import qualified Network.HTTP as HTTP
 import qualified Network.HTTP.Base as Base
-import Bencode
 import qualified Data.Map as M
 import qualified Data.ByteString as B
 import qualified Data.ByteString.Char8 as C
 import Data.List.Split (chunksOf)
+import Data.Char (chr, ord)
 import qualified Data.List as L
 import Network.Socket as Socket
 import qualified Network.Socket.ByteString as NB
 import qualified Network as N
+import qualified Config as Config
+import qualified Control.Monad as Monad
 import System.IO
 import Text.Printf
-import Data.Char (chr, ord)
 import Data.IORef
-import qualified Peer as Peer
-import qualified Control.Monad as Monad
 import Metadata
-import qualified Config as Config
+import Bencode
+import Peer
+
 
 main = do
         peerInfo <- getPeerData
@@ -36,7 +37,7 @@ sendHandshake handle = do
                         handshake <- generateHandshake
                         C.hPutStr handle handshake
 
-recvHandshake :: Handle -> IO Peer.ActivePeer
+recvHandshake :: Handle -> IO ActivePeer
 recvHandshake handle = do
             pStrLen <- B.hGet handle 1
             pStr <- B.hGet handle (fromIntegral $ (B.unpack pStrLen) !! 0)
@@ -51,13 +52,13 @@ recvHandshake handle = do
                         peerInterested <- newIORef False
                         -- pBitField
                         -- pWanted
-                        return Peer.ActivePeer {
-                            Peer.pID = peer_id,
-                            Peer.pHandle = handle,
-                            Peer.pAmChoking = amChoking,
-                            Peer.pAmInterested = amInterested,
-                            Peer.pChoking = peerChoking,
-                            Peer.pInterested = peerInterested
+                        return ActivePeer {
+                            pID = peer_id,
+                            pHandle = handle,
+                            pAmChoking = amChoking,
+                            pAmInterested = amInterested,
+                            pChoking = peerChoking,
+                            pInterested = peerInterested
                         }
                 False -> error ("Peer is not using the BitTorrent protocol. Exiting.")
 

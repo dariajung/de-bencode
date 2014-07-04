@@ -19,8 +19,8 @@ import qualified Data.ByteString.Lazy as Lazy
 import Text.Printf (printf)
 import qualified System.Random as Random
 import Data.List.Split (chunksOf)
-import Metadata
 import qualified Config as Config
+import Metadata
 
 {- Bencode supports four different types of values:
     integers
@@ -58,7 +58,6 @@ parseToBInt = do
             digits <- Combinator.many1 PChar.digit
             PChar.char 'e'
             make negative digits
-
             where 
                 make ' ' ['0'] = return (BInt 0)
                 make '-' ['0'] = Monad.fail "A zero cannot be negative."
@@ -72,7 +71,6 @@ parseToBStr = do
             digits <- Combinator.many1 PChar.digit
             PChar.char ':'
             make (read digits :: Int)
-
             where make len = 
                     do bstring <- Combinator.count len PChar.anyChar
                        return (BStr (pack bstring))
@@ -84,7 +82,6 @@ parseToBDict = do
                 contents <- Combinator.many1 kvPair
                 PChar.char 'e'
                 make contents
-
                 where make contents = return (BDict (M.fromList contents))
 
 -- parse to a Bencoded List
@@ -94,7 +91,6 @@ parseToBList = do
                 contents <- Combinator.many1 (parseToBInt Prim.<|> parseToBStr Prim.<|> parseToBDict Prim.<|> parseToBList)
                 PChar.char 'e'
                 make contents
-
                 where make contents = return (BList (contents))
 
 -- parse to a (BValue, BValue) tuple
@@ -110,7 +106,7 @@ readBencodedFile = parseFromFile parseToBDict
 
 readBencodedString str = parseFromString parseToBDict (pack str)
 
-{- get BDict
+{- getBValue
 
 filetype can be "file" or "string"
 "file": path to file
@@ -123,7 +119,7 @@ getBValue fileType source = do
                     return unwrapped
 
 -- get the info_hash        
-getHash :: IO C.ByteString
+getHash :: IO B.ByteString
 getHash = do
             (BDict dict) <- getBValue "file" Config.torrent
             let info = BStr (pack "info")
