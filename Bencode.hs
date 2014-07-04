@@ -123,7 +123,7 @@ getBValue fileType source = do
                     return unwrapped
 
 -- get the info_hash        
---getHash :: IO String
+getHash :: IO C.ByteString
 getHash = do
             (BDict dict) <- getBValue "file" Config.torrent
             let info = BStr (pack "info")
@@ -145,7 +145,6 @@ peerID = do
         g <- Random.newStdGen
         return . (++) peerPrefix $ take 12 $ (Random.randomRs ('0', '9') g)
 
---addLengths :: [(BValue, BValue)] -> Integer
 getBInts :: [(BValue, a)] -> [a]
 getBInts [] = []
 getBInts ((k, v):xs) = if k == (BStr $ pack "length") then v : getBInts xs else getBInts xs
