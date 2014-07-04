@@ -98,6 +98,8 @@ getResponse = do
         url <- getRequestURL
         HTTP.simpleHTTP (HTTP.getRequest url) >>= fmap (take 1000) . HTTP.getResponseBody
 
+-- Instead of dict, perhaps should create tracker response 
+-- data type?
 trackerResponseToDict = do
                     response <- getResponse
                     (BDict dict) <- getBValue "string" response
@@ -114,12 +116,13 @@ trackerResponseToDict = do
                                         ("interval", show interval),
                                         ("peers", C.unpack peers)]
 
+-- Get peer data from the tracker response
 getPeerData :: IO [([Char], Integer)]
 getPeerData = do
         dict <- trackerResponseToDict
         return $ parseBinaryModel (dict M.! "peers")
 
--- parse peer data
+-- parse peer data presented in binary model
 parseBinaryModel peerStr = 
                     let dList = chunksOf 6 $ map show (B.unpack $ C.pack peerStr)
                         digest [] = []
