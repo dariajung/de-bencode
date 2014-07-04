@@ -120,8 +120,10 @@ getPeerData = do
         return $ parseBinaryModel (dict M.! "peers")
 
 -- parse peer data
-parseBinaryModel str = 
-                    let dList = chunksOf 6 $ map show (B.unpack $ C.pack str)
+parseBinaryModel peerStr = 
+                    let dList = chunksOf 6 $ map show (B.unpack $ C.pack peerStr)
                         digest [] = []
-                        digest (x:xs) = (L.intercalate "." $ take 4 x, (read (x !! 4) :: Integer) * 256 + (read (x !! 5) :: Integer)) : digest xs
+                        digest (x:xs) = (L.intercalate "." $ take 4 x, 
+                            (read (x !! 4) :: Integer) * 256 + 
+                            (read (x !! 5) :: Integer)) : digest xs
                         in (digest dList)
