@@ -3,6 +3,7 @@ module Peer where
 import qualified Data.ByteString as B
 import System.IO
 import Data.IORef
+import Data.Array.IO
 
 
 data ActivePeer = ActivePeer {
@@ -14,6 +15,11 @@ data ActivePeer = ActivePeer {
     pChoking :: IORef Bool, -- Peer is choking me.
     pInterested :: IORef Bool -- Peer is interested in me.
 
-    -- pBitField :: not sure what type I want this to be
-    -- pWanted -- piece I want from this peer.
+    pBitField :: IOUArray Int Bool, -- array representation of a bitfield
+    pWanted :: IORef Int -- piece I want from this peer.
+}
+
+data InactivePeer = InactivePeer {
+    port :: Int,
+    ip :: String
 }

@@ -54,7 +54,7 @@ recvHandshake handle = do
                         amInterested <- newIORef False
                         peerChoking <- newIORef True
                         peerInterested <- newIORef False
-                        -- pBitField
+                        bitField <- newArray (0, (infoPieceCount metainfo) - 1) False
                         -- pWanted
                         return ActivePeer {
                             pID = peer_id,

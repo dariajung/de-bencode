@@ -152,7 +152,7 @@ sumBInts [] = 0
 -- checks if torrent is for multiple files or a single file
 isMult :: IO Bool
 isMult = do 
-            (BDict dict) <- getBValue "file" "torrents/ubuntu.torrent"
+            (BDict dict) <- getBValue "file" Config.torrent
             let info = BStr (pack "info")
                 f = BStr (pack "files")
                 (BDict infoDict) = dict M.! info
@@ -161,18 +161,21 @@ isMult = do
 -- parse torrents with multiple files
 parseDataMultiple :: IO Metadata
 parseDataMultiple = do
-                    (BDict dict) <- (getBValue "file" Config.torrent)
+                    (BDict dict) <- (getBValue "file" "torrents/karl_marx.torrent")
                     let announce = BStr (pack "announce")
                         info = BStr (pack "info")
                         f = BStr (pack "files")
+                        pLen = BStr (pack "piece length")
                         (BStr announceUrl) = dict M.! announce
                         (BDict infoDict) = dict M.! info
                         (BList files) = infoDict M.! f
+                        (BInt pieceLen) = infoDict M.! pLen
                         flattened = concat $ map (\(BDict x) -> M.toList x) files
                         totalLength = sumBInts $ getBInts flattened
                     return Metadata {
                         announce = unpack announceUrl,
-                        tLen = show totalLength
+                        tLen = show totalLength,
+                        pieceCount = show (ceiling $ (fromIntegral totalLength) / (fromIntegral pieceLen))
                     }
 
 -- parse torrents with single files
@@ -182,12 +185,15 @@ parseDataSingle = do
             let announce = BStr (pack "announce")
                 info = BStr (pack "info")
                 len = BStr (pack "length")
+                pLen = BStr (pack "piece length")
                 (BStr announceUrl) = dict M.! announce 
                 (BDict infoDict) = dict M.! info
                 (BInt _length) = infoDict M.! len
+                (BInt pieceLen) = infoDict M.! pLen
             return Metadata {
                 announce = unpack announceUrl,
-                tLen = show _length
+                tLen = show _length,
+                pieceCount = show pieceLen
             }         
 
 parseFromFile :: Prim.Parsec B.ByteString () a -> String -> IO (Either PError.ParseError a)
