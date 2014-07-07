@@ -6,6 +6,7 @@ import Network.HTTP
 import qualified Data.Map as M
 import qualified Data.ByteString as B
 import qualified Data.ByteString.Char8 as C
+import qualified Data.ByteString.Lazy as Lz
 import Data.List.Split (chunksOf)
 import Data.Char (chr, ord)
 import qualified Data.List as L
@@ -17,6 +18,8 @@ import System.IO
 import Text.Printf
 import Data.IORef
 import Data.Array.IO
+import Data.Binary.Get
+import Data.Binary.Put
 
 import qualified Config as Config
 import Metadata
@@ -100,7 +103,14 @@ parseMessage msgType payload = do
         6 -> (MsgRequest, [payload])
         7 -> (MsgPiece, [payload])
         8 -> (MsgCancel, [payload])
-        otherwise -> error ("Can't read received message. Unknown message id: " ++ (show msgType) ++ ".")        
+        otherwise -> error ("Can't read received message. Unknown message id: " ++ (show msgType) ++ ".")      
+
+-- send message to peer
+--sendMessage handle header payload = do  
+--                                    putStrLn $ "Sending " ++ (show header) ++ "to peer."
+--                                    case header of
+--                                        MsgKeepAlive -> ()
+
 
 generateHandshake :: IO C.ByteString
 generateHandshake = do
@@ -174,5 +184,10 @@ parseBinaryModel peerStr =
                             (read (x !! 5) :: Integer)) : digest xs
                         in (digest dList)
 
+-- REMEMBER THAT MESSAGES ARE BIG ENDIAN
+
 readInt :: B.ByteString -> Int
 readInt x = fromEnum $ L.sum $ B.unpack x
+
+writeInt :: Integral a => a -> C.ByteString
+writeInt x = B.concat $ Lz.toChunks $ runPut $ putWord32be $ fromIntegral x
