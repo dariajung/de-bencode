@@ -3,8 +3,9 @@ module Peer where
 import qualified Data.ByteString as B
 import System.IO
 import Data.IORef
-import Data.Array.IO
+import Data.Array.IO 
 
+-- Data.Array.IO and Data.IORef because yay mutable state
 
 data ActivePeer = ActivePeer {
     pID :: B.ByteString, -- peer id.
@@ -23,3 +24,9 @@ data InactivePeer = InactivePeer {
     port :: Int,
     ip :: String
 }
+
+addActivePeer :: ActivePeer -> IORef [ActivePeer] -> IO ()
+addActivePeer peer arr = modifyIORef arr (peer:)
+
+addInactivePeer :: InactivePeer -> IORef [InactivePeer] -> IO ()
+addInactivePeer peer arr = modifyIORef arr (peer:)
