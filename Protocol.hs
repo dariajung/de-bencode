@@ -67,6 +67,7 @@ recvHandshake handle = do
                         }
                 False -> error ("Peer is not using the BitTorrent protocol. Exiting.")
 
+recvMessage :: Handle -> IO (Msg, [C.ByteString])
 recvMessage handle = do
                 numBytes <- B.hGet handle 4
                 if (B.length numBytes) < 4
@@ -82,7 +83,7 @@ recvMessage handle = do
                                         body <- B.hGet handle size
                                         return $ parseMessage (readInt msgType) body
 
-
+parseMessage :: (Eq a, Num a, Show a) => a -> C.ByteString -> (Msg, [C.ByteString])
 parseMessage msgType payload = do
     case msgType of
         0 -> (MsgChoke, [B.empty])
