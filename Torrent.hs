@@ -29,6 +29,9 @@ data Torrent = Torrent {
     pieces ::  IOArray Int Piece 
 }
 
+-- take in torrent file name 
+-- and generate torrent data type
+--generateTorrent str = 
 
 -- move to diff module
 main = do
@@ -39,7 +42,7 @@ main = do
     hSetBuffering handle LineBuffering
     putStrLn $ "Sending handshake to " ++ (ipAddr) ++ ":" ++ (show $ portNum)
     sendHandshake handle
-    recvHandshake handle
+    activePeer <- recvHandshake handle
     recvMessage handle
 
 -- form initial request URL to tracker
@@ -99,3 +102,11 @@ parseBinaryModel peerStr =
             (read (x !! 4) :: Integer) * 256 + 
             (read (x !! 5) :: Integer)) : digest xs
         in (digest dList)
+
+-- parseMessage which gives (Msg, [C.ByteString])
+--processMessage (msgType, payload) =
+--    case msgType of
+--        -- return nothing on receiving Keep Alive
+--        MsgKeepAlive -> return ()
+--        -- Peer is choking, update peer data
+--        MsgChoke -> 
