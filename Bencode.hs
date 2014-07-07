@@ -193,7 +193,7 @@ parseDataSingle = do
             return Metadata {
                 announce = unpack announceUrl,
                 tLen = show _length,
-                pieceCount = show pieceLen
+                pieceCount = show $ ceiling ((fromIntegral _length) / (fromIntegral pieceLen))
             }         
 
 parseFromFile :: Prim.Parsec B.ByteString () a -> String -> IO (Either PError.ParseError a)

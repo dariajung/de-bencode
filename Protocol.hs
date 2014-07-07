@@ -16,6 +16,7 @@ import Control.Concurrent
 import System.IO
 import Text.Printf
 import Data.IORef
+import Data.Array.IO
 
 import qualified Config as Config
 import Metadata
@@ -43,6 +44,7 @@ sendHandshake handle = do
 
 recvHandshake :: Handle -> IO ActivePeer
 recvHandshake handle = do
+            metaData <- getMetaData
             pStrLen <- B.hGet handle 1
             pStr <- B.hGet handle (fromIntegral $ (B.unpack pStrLen) !! 0)
             reserved <- B.hGet handle 8
@@ -54,15 +56,17 @@ recvHandshake handle = do
                         amInterested <- newIORef False
                         peerChoking <- newIORef True
                         peerInterested <- newIORef False
-                        bitField <- newArray (0, (infoPieceCount metainfo) - 1) False
-                        -- pWanted
+                        bitField <- newArray (0, (read (pieceCount metaData) :: Int) - 1) False 
+                        wanted <- newIORef (-1)
                         return ActivePeer {
                             pID = peer_id,
                             pHandle = handle,
                             pAmChoking = amChoking,
                             pAmInterested = amInterested,
                             pChoking = peerChoking,
-                            pInterested = peerInterested
+                            pInterested = peerInterested,
+                            pBitField = bitField,
+                            pWanted = wanted
                         }
                 False -> error ("Peer is not using the BitTorrent protocol. Exiting.")
 
@@ -108,10 +112,15 @@ generateHandshake = do
                         hMsg = B.concat [pstrlen, pstr, reserved, info_hash, peer_id]
                     return hMsg
 
+getMetaData :: IO Metadata
+getMetaData = do
+            multipleFiles <- isMult
+            metaData <- if multipleFiles then parseDataMultiple else parseDataSingle
+            return metaData
+
 -- form initial request URL to tracker
 getRequestURL = do
-                multipleFiles <- isMult
-                metaData <- if multipleFiles then parseDataMultiple else parseDataSingle
+                metaData <- getMetaData
                 hash <- getHash 
                 {-- need to figure out how to capture state?
                     so for time being, hardcoding peer_id
