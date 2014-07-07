@@ -14,6 +14,8 @@ import qualified Network.Socket.ByteString as NB
 import qualified Network as N
 import qualified Config as Config
 import qualified Control.Monad as Monad
+import Data.Maybe
+import Control.Concurrent
 import System.IO
 import Text.Printf
 import Data.IORef
@@ -21,6 +23,8 @@ import Metadata
 import Bencode
 import Peer
 
+data Msg = MsgKeepAlive | MsgChoke | MsgUnchoke | MsgInterested | MsgNotInterested | MsgHave | MsgBitfield | MsgRequest 
+                        | MsgPiece | MsgCancel | MsgPort deriving (Show, Enum)
 
 main = do
         peerInfo <- getPeerData
@@ -31,6 +35,7 @@ main = do
         putStrLn $ "Sending handshake to " ++ (ipAddr) ++ ":" ++ (show $ portNum)
         sendHandshake handle
         recvHandshake handle
+        recvMessage handle
 
 sendHandshake :: Handle -> IO ()
 sendHandshake handle = do
@@ -62,6 +67,22 @@ recvHandshake handle = do
                         }
                 False -> error ("Peer is not using the BitTorrent protocol. Exiting.")
 
+recvMessage handle = do
+                numBytes <- B.hGet handle 4
+                if (B.length numBytes) < 4
+                    then do
+                        threadDelay 1000000
+                        recvMessage handle
+                    else do 
+                        let size = readInt numBytes
+                        case size of
+                            0 -> return (MsgKeepAlive, [B.empty])
+                            otherwise -> do
+                                        body <- B.hGet handle size
+                                        print body
+                                        return (MsgKeepAlive, [B.empty])
+
+
 generateHandshake :: IO C.ByteString
 generateHandshake = do
                     info_hash <- getHash
@@ -77,9 +98,7 @@ getRequestURL = do
                 multipleFiles <- isMult
                 metaData <- if multipleFiles then parseDataMultiple else parseDataSingle
                 hash <- getHash 
-                {-- need to figure out how to capture state
-                    peerID <- 
-                    peerID
+                {-- need to figure out how to capture state?
                     so for time being, hardcoding peer_id
                     or just put into a config file? --}
                 let urlEncodedHash = addPercents $ toHex hash
@@ -94,14 +113,14 @@ getRequestURL = do
                 return $ (announce metaData) ++ "?" ++ "info_hash=" ++ urlEncodedHash ++ "&" ++ params
 
 -- get back response from tracker
-getResponse = do
+getRawResponse = do
         url <- getRequestURL
         HTTP.simpleHTTP (HTTP.getRequest url) >>= fmap (take 1000) . HTTP.getResponseBody
 
 -- Instead of dict, perhaps should create tracker response 
 -- data type?
 trackerResponseToDict = do
-                    response <- getResponse
+                    response <- getRawResponse
                     (BDict dict) <- getBValue "string" response
                     let complete = BStr (C.pack "complete")
                         incomplete = BStr (C.pack "incomplete")
@@ -130,3 +149,6 @@ parseBinaryModel peerStr =
                             (read (x !! 4) :: Integer) * 256 + 
                             (read (x !! 5) :: Integer)) : digest xs
                         in (digest dList)
+
+readInt :: B.ByteString -> Int
+readInt x = fromEnum $ L.sum $ B.unpack x
