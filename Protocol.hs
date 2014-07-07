@@ -1,24 +1,23 @@
 
 module Protocol where
 
-import qualified Network.HTTP as HTTP
-import qualified Network.HTTP.Base as Base
+import Network
+import Network.HTTP
 import qualified Data.Map as M
 import qualified Data.ByteString as B
 import qualified Data.ByteString.Char8 as C
 import Data.List.Split (chunksOf)
 import Data.Char (chr, ord)
 import qualified Data.List as L
-import Network.Socket as Socket
 import qualified Network.Socket.ByteString as NB
-import qualified Network as N
-import qualified Config as Config
 import qualified Control.Monad as Monad
 import Data.Maybe
 import Control.Concurrent
 import System.IO
 import Text.Printf
 import Data.IORef
+
+import qualified Config as Config
 import Metadata
 import Bencode
 import Peer
@@ -30,7 +29,7 @@ main = do
         peerInfo <- getPeerData
         let (ipAddr, portNum) = head peerInfo
         putStrLn $ "Connecting to " ++ (ipAddr) ++ ":" ++ (show $ portNum)
-        handle <- N.connectTo ipAddr (N.PortNumber $ fromIntegral portNum)
+        handle <- Network.connectTo ipAddr (Network.PortNumber $ fromIntegral portNum)
         hSetBuffering handle LineBuffering
         putStrLn $ "Sending handshake to " ++ (ipAddr) ++ ":" ++ (show $ portNum)
         sendHandshake handle
@@ -81,7 +80,9 @@ recvMessage handle = do
                             otherwise -> do
                                         msgType <- B.hGet handle 1
                                         body <- B.hGet handle size
-                                        return $ parseMessage (readInt msgType) body
+                                        let parsedMsg = parseMessage (readInt msgType) body
+                                        print parsedMsg
+                                        return parsedMsg
 
 parseMessage :: (Eq a, Num a, Show a) => a -> C.ByteString -> (Msg, [C.ByteString])
 parseMessage msgType payload = do
@@ -116,7 +117,7 @@ getRequestURL = do
                     so for time being, hardcoding peer_id
                     or just put into a config file? --}
                 let urlEncodedHash = addPercents $ toHex hash
-                    params = Base.urlEncodeVars 
+                    params = Network.HTTP.urlEncodeVars 
                             [("peer_id", "-HT0001-560535105852"), 
                             ("left", (tLen metaData)), 
                             ("port", "6882"),
@@ -129,7 +130,7 @@ getRequestURL = do
 -- get back response from tracker
 getRawResponse = do
         url <- getRequestURL
-        HTTP.simpleHTTP (HTTP.getRequest url) >>= fmap (take 1000) . HTTP.getResponseBody
+        Network.HTTP.simpleHTTP (Network.HTTP.getRequest url) >>= fmap (take 1000) . Network.HTTP.getResponseBody
 
 -- Instead of dict, perhaps should create tracker response 
 -- data type?
