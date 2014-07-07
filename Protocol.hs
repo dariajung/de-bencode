@@ -112,6 +112,15 @@ sendMessage handle header payload = do
     case header of
         MsgKeepAlive -> B.hPut handle $ writeBEByteStringInt 0
         MsgChoke -> B.hPut handle $ B.concat [writeBEByteStringInt 1, writeDecByteInt 0]
+        MsgUnchoke -> B.hPut handle $ B.concat [writeBEByteStringInt 1, writeDecByteInt 1]
+        MsgInterested -> B.hPut handle $ B.concat [writeBEByteStringInt 1, writeDecByteInt 2]
+        MsgNotInterested -> B.hPut handle $ B.concat [writeBEByteStringInt 1, writeDecByteInt 3]
+        MsgHave -> B.hPut handle $ B.append (B.concat [writeBEByteStringInt 5, writeDecByteInt 4]) (B.concat payload)
+        -- not sending bitfield
+        MsgRequest -> B.hPut handle $ B.append (B.concat [writeBEByteStringInt 13, writeDecByteInt 6]) (B.concat payload)
+        -- send piece
+        -- not sending cancel
+        -- not sending port
 
 generateHandshake :: IO C.ByteString
 generateHandshake = do
@@ -189,6 +198,7 @@ parseBinaryModel peerStr =
 
 -- REMEMBER THAT MESSAGES ARE BIG ENDIAN
 
+-- read a big endian bytestring representation of int
 readBEInt :: B.ByteString -> Int
 readBEInt x = fromIntegral $ runGet getWord32be $ Lz.fromChunks $ return x
 
