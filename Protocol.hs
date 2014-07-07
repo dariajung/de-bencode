@@ -78,10 +78,23 @@ recvMessage handle = do
                         case size of
                             0 -> return (MsgKeepAlive, [B.empty])
                             otherwise -> do
+                                        msgType <- B.hGet handle 1
                                         body <- B.hGet handle size
-                                        print body
-                                        return (MsgKeepAlive, [B.empty])
+                                        return $ parseMessage (readInt msgType) body
 
+
+parseMessage msgType payload = do
+    case msgType of
+        0 -> (MsgChoke, [B.empty])
+        1 -> (MsgUnchoke, [B.empty])
+        2 -> (MsgInterested, [B.empty])
+        3 -> (MsgNotInterested, [B.empty])
+        4 -> (MsgHave, [payload])
+        5 -> (MsgBitfield, [payload])
+        6 -> (MsgRequest, [payload])
+        7 -> (MsgPiece, [payload])
+        8 -> (MsgCancel, [payload])
+        otherwise -> error ("Can't read received message. Unknown message id: " ++ (show msgType) ++ ".")        
 
 generateHandshake :: IO C.ByteString
 generateHandshake = do
