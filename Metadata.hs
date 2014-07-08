@@ -6,6 +6,7 @@ import qualified Data.Map as M
 import qualified Data.List as L
 import Bencode
 import qualified Config as Config
+import Data.List.Split (chunksOf)
 
 data Metadata = Metadata {
     announce :: String, -- announce URL
@@ -74,3 +75,12 @@ parseDataSingle = do
         pieceLength = show $ fromIntegral pieceLen,
         info = BDict infoDict
     }  
+
+-- generates a list of all piece hashes
+generatePieceHashes = do
+    a <- parseDataSingle
+    let (BDict b) = info a
+        (BStr c) = b M.! (BStr (pack "pieces"))
+        hash (x:xs) = SHA1.hash x : hash xs
+        lBytes = chunksOf 20 $ map (B.singleton) (B.unpack c)
+    return $ map toHex $ map (B.concat) lBytes
