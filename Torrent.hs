@@ -17,6 +17,7 @@ import Data.List.Split (chunksOf)
 import Control.Monad
 import Data.Array.IO
 import Data.IORef
+import Data.Maybe
 
 import Peer
 import Metadata
@@ -73,14 +74,30 @@ loopRecvMsg torrent peer = forever $ do
     (msg, payload) <- recvMessage (pHandle peer)
     processMessage torrent peer (msg, payload)
 
--- recvMessage parses message
--- which gives (Msg, [C.ByteString]), pass this to processMessage
- processMessage torrent peer (msgType, payload) =
+{-- 
+recvMessage parses message
+which gives (Msg, [C.ByteString]), pass this to processMessage 
+
+block size: 16384 kb
+--}
+processMessage torrent peer (msgType, payload) = 
     case msgType of
         -- return nothing on receiving Keep Alive
         MsgKeepAlive -> return ()
         -- Peer is choking, update peer data and send interested message
         MsgChoke -> do 
             writeIORef (pChoking peer) True
-            sendMessage (pHandle peer) (MsgInterested) B.empty
-        MsgUnchoke -> 
+            sendMessage (pHandle peer) (MsgInterested) [B.empty]
+        -- yay peer has unchoked me, time to request
+        MsgUnchoke -> do
+            writeIORef (pChoking peer) False
+            indexWant <- readIORef (pWanted peer)
+            if indexWant == -1
+                then return ()
+                else do
+                    piece <- readArray (pieces torrent) indexWant
+                    pieceBitfield <- getElems $ pBitfield piece
+                    let begin = fromJust $ L.elemIndex False pieceBitfield
+                    putStrLn $ "\n\tMaking a request for piece " ++ (show indexWant) ++ " with block index " ++ (show begin)
+                    sendMessage (pHandle peer) (MsgRequest) $ map writeBEByteStringInt [indexWant, begin * 16384, 16384]
+

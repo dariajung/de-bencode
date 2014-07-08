@@ -121,5 +121,6 @@ readBEInt x = fromIntegral $ runGet getWord32be $ Lz.fromChunks $ return x
 writeBEByteStringInt :: Integral a => a -> C.ByteString
 writeBEByteStringInt x = B.concat $ Lz.toChunks $ runPut $ putWord32be $ fromIntegral x
 
+-- write a single byte bytestring
 writeDecByteInt :: Integral a => a -> C.ByteString
 writeDecByteInt x = B.singleton (fromIntegral x)
