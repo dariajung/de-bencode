@@ -71,12 +71,16 @@ initiateHandshake torrent peer = do
 
 loopRecvMsg torrent peer = forever $ do
     (msg, payload) <- recvMessage (pHandle peer)
-    print msg
+    processMessage torrent peer (msg, payload)
 
--- parseMessage which gives (Msg, [C.ByteString])
---processMessage (msgType, payload) =
---    case msgType of
---        -- return nothing on receiving Keep Alive
---        MsgKeepAlive -> return ()
---        -- Peer is choking, update peer data
---        MsgChoke -> 
+-- recvMessage parses message
+-- which gives (Msg, [C.ByteString]), pass this to processMessage
+ processMessage torrent peer (msgType, payload) =
+    case msgType of
+        -- return nothing on receiving Keep Alive
+        MsgKeepAlive -> return ()
+        -- Peer is choking, update peer data and send interested message
+        MsgChoke -> do 
+            writeIORef (pChoking peer) True
+            sendMessage (pHandle peer) (MsgInterested) B.empty
+        MsgUnchoke -> 

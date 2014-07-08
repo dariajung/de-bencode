@@ -93,10 +93,11 @@ sendMessage handle header payload = do
         MsgUnchoke -> B.hPut handle $ B.concat [writeBEByteStringInt 1, writeDecByteInt 1]
         MsgInterested -> B.hPut handle $ B.concat [writeBEByteStringInt 1, writeDecByteInt 2]
         MsgNotInterested -> B.hPut handle $ B.concat [writeBEByteStringInt 1, writeDecByteInt 3]
+        -- proably shouldn't send haves because I'm not planning on working on uploading
         MsgHave -> B.hPut handle $ B.append (B.concat [writeBEByteStringInt 5, writeDecByteInt 4]) (B.concat payload)
         -- not sending bitfield
         MsgRequest -> B.hPut handle $ B.append (B.concat [writeBEByteStringInt 13, writeDecByteInt 6]) (B.concat payload)
-        -- send piece
+        -- send piece? nah, no uploading because I'm mean.
         -- not sending cancel
         -- not sending port
 
