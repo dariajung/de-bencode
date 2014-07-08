@@ -13,7 +13,8 @@ data Metadata = Metadata {
     tLen :: String, -- Torrent length
     pieceCount :: String, -- total number of pieces
     pieceLength :: String, -- the length of a single piece
-    info :: BValue -- the value of the info dictionary
+    info :: BValue, -- the value of the info dictionary
+    pieceHashes :: [B.ByteString] -- list of all piece hashes
 
 } deriving (Show)
 
@@ -48,12 +49,14 @@ parseDataMultiple = do
         (BInt pieceLen) = infoDict M.! pLen
         flattened = concat $ map (\(BDict x) -> M.toList x) files
         totalLength = sumBInts $ getBInts flattened
+        (BStr pieces) = infoDict M.! (BStr (pack "pieces"))
     return Metadata {
         announce = unpack announceUrl,
         tLen = show totalLength,
         pieceCount = show (ceiling $ (fromIntegral totalLength) / (fromIntegral pieceLen)),
         pieceLength = show $ fromIntegral pieceLen,
-        info = BDict infoDict
+        info = BDict infoDict,
+        pieceHashes = map (B.concat) $ chunksOf 20 $ map (B.singleton) (B.unpack pieces)
     }
 
 -- parse torrents with single files
@@ -68,12 +71,14 @@ parseDataSingle = do
         (BDict infoDict) = dict M.! info
         (BInt _length) = infoDict M.! len
         (BInt pieceLen) = infoDict M.! pLen
+        (BStr pieces) = infoDict M.! (BStr (pack "pieces"))
     return Metadata {
         announce = unpack announceUrl,
         tLen = show _length,
         pieceCount = show $ ceiling ((fromIntegral _length) / (fromIntegral pieceLen)),
         pieceLength = show $ fromIntegral pieceLen,
-        info = BDict infoDict
+        info = BDict infoDict,
+        pieceHashes = map (B.concat) $ chunksOf 20 $ map (B.singleton) (B.unpack pieces)
     }  
 
 -- generate a metadata data type
@@ -83,11 +88,6 @@ getMetaData = do
     metaData <- if multipleFiles then parseDataMultiple else parseDataSingle
     return metaData
 
--- generates a list of all piece hashes
-generatePieceHashes :: IO [String]
-generatePieceHashes = do
-    mdata <- getMetaData
-    let (BDict infoD) = info mdata
-        (BStr pieces) = infoD M.! (BStr (pack "pieces"))
-        lBytes = chunksOf 20 $ map (B.singleton) (B.unpack pieces)
-    return $ map toHex $ map (B.concat) lBytes
+-- return piece hash at specified index
+infoPieceHash :: Metadata -> Int -> B.ByteString
+infoPieceHash m index = (pieceHashes m) !! index
