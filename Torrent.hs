@@ -90,8 +90,9 @@ processMessage torrent peer (msgType, payload) =
             sendMessage (pHandle peer) (MsgInterested) [B.empty]
         -- yay peer has unchoked me, time to request
         MsgUnchoke -> do
-            writeIORef (pChoking peer) False
-            indexWant <- readIORef (pWanted peer)
+            writeIORef (pChoking peer) False -- peer has stopped choking me.
+            writeIORef (pAmInterested peer) True -- I am interested in this peer.
+            indexWant <- readIORef (pWanted peer) -- get the wanted piece from this peer.
             if indexWant == -1
                 then return ()
                 else do
@@ -109,19 +110,23 @@ processMessage torrent peer (msgType, payload) =
         MsgHave -> do
             let index = readBEInt $ head payload
             writeIORef (pWanted peer) index
-            done <- readIORef pDone piece
-            amInterested <- readIORef pAmInterested peer 
 
             piece <- readArray (pieces torrent) index
+            done <- readIORef pDone piece
+            amInterested <- readIORef pAmInterested peer 
+            choked <- readIORef pChoking peer 
 
             {-- 
                 if the piece hasn't finished downloading,
                 and I am interested in this peer, send a
-                request message. Don't have to check if the
-                peer is choking me because I'm receiving a 
-                Have message.
+                request message. Check to see if peer 
+                has unchoked me. Otherwise, send an 
+                interested message.
             --}
-            if (not done && amInterested) {
-
-            }
-
+            if (not done && amInterested && not choked) 
+                then do
+                    sendMessage (pHandle peer) (MsgRequest) $ map writeBEByteStringInt [indexWant, begin * 16384, 16384]
+                else do
+                    writeIORef (pAmInterested peer) True
+                    writeIORef (pWanted peer) index
+                    sendMessage (pHandle peer) MsgInterested [B.empty]
