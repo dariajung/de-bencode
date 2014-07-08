@@ -100,4 +100,28 @@ processMessage torrent peer (msgType, payload) =
                     let begin = fromJust $ L.elemIndex False pieceBitfield
                     putStrLn $ "\n\tMaking a request for piece " ++ (show indexWant) ++ " with block index " ++ (show begin)
                     sendMessage (pHandle peer) (MsgRequest) $ map writeBEByteStringInt [indexWant, begin * 16384, 16384]
+        -- don't send unchoke because I'm not uploading...
+        MsgInterested -> do
+            writeIORef (pInterested peer) True
+        -- disconnect connection? or just wait for interested message?
+        MsgNotInterested -> do
+            writeIORef (pInterested peer) False
+        MsgHave -> do
+            let index = readBEInt $ head payload
+            writeIORef (pWanted peer) index
+            done <- readIORef pDone piece
+            amInterested <- readIORef pAmInterested peer 
+
+            piece <- readArray (pieces torrent) index
+
+            {-- 
+                if the piece hasn't finished downloading,
+                and I am interested in this peer, send a
+                request message. Don't have to check if the
+                peer is choking me because I'm receiving a 
+                Have message.
+            --}
+            if (not done && amInterested) {
+
+            }
 
