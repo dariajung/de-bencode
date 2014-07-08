@@ -111,12 +111,6 @@ generateHandshake = do
         hMsg = B.concat [pstrlen, pstr, reserved, info_hash, peer_id]
     return hMsg
 
-getMetaData :: IO Metadata
-getMetaData = do
-    multipleFiles <- isMult
-    metaData <- if multipleFiles then parseDataMultiple else parseDataSingle
-    return metaData
-
 -- REMEMBER THAT MESSAGES ARE BIG ENDIAN
 
 -- read a big endian bytestring representation of int

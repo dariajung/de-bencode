@@ -76,11 +76,18 @@ parseDataSingle = do
         info = BDict infoDict
     }  
 
+-- generate a metadata data type
+getMetaData :: IO Metadata
+getMetaData = do
+    multipleFiles <- isMult
+    metaData <- if multipleFiles then parseDataMultiple else parseDataSingle
+    return metaData
+
 -- generates a list of all piece hashes
+generatePieceHashes :: IO [String]
 generatePieceHashes = do
-    a <- parseDataSingle
-    let (BDict b) = info a
-        (BStr c) = b M.! (BStr (pack "pieces"))
-        hash (x:xs) = SHA1.hash x : hash xs
-        lBytes = chunksOf 20 $ map (B.singleton) (B.unpack c)
+    mdata <- getMetaData
+    let (BDict infoD) = info mdata
+        (BStr pieces) = infoD M.! (BStr (pack "pieces"))
+        lBytes = chunksOf 20 $ map (B.singleton) (B.unpack pieces)
     return $ map toHex $ map (B.concat) lBytes
