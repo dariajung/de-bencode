@@ -48,17 +48,21 @@ generateTorrent = do
         pieces = pieceArr
     }
 
--- move to diff module
---main torrent = do
---    peerInfo <- getPeerData
---    let (ipAddr, portNum) = head peerInfo
---    putStrLn $ "Connecting to " ++ (ipAddr) ++ ":" ++ (show $ portNum)
---    handle <- Network.connectTo ipAddr (Network.PortNumber $ fromIntegral portNum)
---    hSetBuffering handle LineBuffering
---    putStrLn $ "Sending handshake to " ++ (ipAddr) ++ ":" ++ (show $ portNum)
---    sendHandshake handle
---    activePeer <- recvHandshake handle
---    recvMessage torrent handle
+start = do
+    torrent <- generateTorrent
+    initiateHandshake torrent
+
+initiateHandshake torrent = do
+    inactivePeers <- genInactives torrent
+    let aPeer = head inactivePeers
+    putStrLn $ "Connecting to " ++ (Peer.ip aPeer) ++ ":" ++ (show $ Peer.port aPeer)
+    handle <- Network.connectTo (Peer.ip aPeer) (Network.PortNumber $ fromIntegral $ Peer.port aPeer)
+    hSetBuffering handle LineBuffering
+    putStrLn $ "Sending handshake to " ++ (Peer.ip aPeer) ++ ":" ++ (show $ Peer.port aPeer)
+    sendHandshake handle
+    activePeer <- recvHandshake (metadata torrent) handle
+    addActivePeer activePeer (activePeers torrent)
+    recvMessage handle
 
 -- form initial request URL to tracker
 getRequestURL = do
@@ -102,6 +106,13 @@ trackerResponseToDict = do
                         ("incomplete", show leechers), 
                         ("interval", show interval),
                         ("peers", C.unpack peers)]
+
+-- generate a list of inactive peers
+genInactives torrent = do
+    peers <- getPeerData
+    let create ((ipAddr, portNum):xs) = InactivePeer {Peer.ip = ipAddr, Peer.port = fromIntegral portNum} : create xs
+        peerL = create peers
+    return peerL
 
 -- Get peer data from the tracker response
 getPeerData :: IO [([Char], Integer)]
