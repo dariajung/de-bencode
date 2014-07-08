@@ -25,9 +25,8 @@ sendHandshake handle = do
     handshake <- generateHandshake
     C.hPutStr handle handshake
 
-recvHandshake :: MetaData -> Handle -> IO ActivePeer
-recvHandshake torrent handle = do
-    metaData <- metadata torrent
+recvHandshake :: Metadata -> Handle -> IO ActivePeer
+recvHandshake metadata handle = do
     pStrLen <- B.hGet handle 1
     pStr <- B.hGet handle (fromIntegral $ (B.unpack pStrLen) !! 0)
     reserved <- B.hGet handle 8
@@ -39,7 +38,7 @@ recvHandshake torrent handle = do
                 amInterested <- newIORef False
                 peerChoking <- newIORef True
                 peerInterested <- newIORef False
-                bitField <- newArray (0, (read (pieceCount metaData) :: Int) - 1) False 
+                bitField <- newArray (0, (read (pieceCount metadata) :: Int) - 1) False 
                 wanted <- newIORef (-1)
                 return ActivePeer {
                     pID = peer_id,

@@ -14,6 +14,9 @@ import Control.Concurrent
 import System.IO
 import Text.Printf
 import Data.List.Split (chunksOf)
+import Control.Monad
+import Data.Array.IO
+import Data.IORef
 
 import Peer
 import Metadata
@@ -30,26 +33,32 @@ data Torrent = Torrent {
 }
 
 -- generate torrent data type
+generateTorrent :: IO Torrent
 generateTorrent = do 
     metainfo <- getMetaData
+    lPieces <- mapM (\x -> genPiece (read (pieceLength metainfo) :: Int) 
+        (infoPieceHash metainfo x) x) [0..(read (pieceCount metainfo)::Int)]
+    inactv <- newIORef []
+    actv <- newIORef [] 
+    pieceArr <- newListArray (0, (read (pieceCount metainfo) :: Int) - 1) lPieces
     return Torrent {
         metadata = metainfo,
-        inactivePeers = IORef [],
-        activePeers = IORef [],
-        pieces = 
+        inactivePeers = inactv,
+        activePeers = actv,
+        pieces = pieceArr
     }
 
 -- move to diff module
-main torrent = do
-    peerInfo <- getPeerData
-    let (ipAddr, portNum) = head peerInfo
-    putStrLn $ "Connecting to " ++ (ipAddr) ++ ":" ++ (show $ portNum)
-    handle <- Network.connectTo ipAddr (Network.PortNumber $ fromIntegral portNum)
-    hSetBuffering handle LineBuffering
-    putStrLn $ "Sending handshake to " ++ (ipAddr) ++ ":" ++ (show $ portNum)
-    sendHandshake handle
-    activePeer <- recvHandshake handle
-    recvMessage torrent handle
+--main torrent = do
+--    peerInfo <- getPeerData
+--    let (ipAddr, portNum) = head peerInfo
+--    putStrLn $ "Connecting to " ++ (ipAddr) ++ ":" ++ (show $ portNum)
+--    handle <- Network.connectTo ipAddr (Network.PortNumber $ fromIntegral portNum)
+--    hSetBuffering handle LineBuffering
+--    putStrLn $ "Sending handshake to " ++ (ipAddr) ++ ":" ++ (show $ portNum)
+--    sendHandshake handle
+--    activePeer <- recvHandshake handle
+--    recvMessage torrent handle
 
 -- form initial request URL to tracker
 getRequestURL = do

@@ -1,6 +1,7 @@
 module Piece where
 
 import qualified Data.ByteString as B
+import qualified Data.ByteString.Char8 as C
 import Data.Array.IO
 import Data.IORef
 import qualified Data.Map as Map
@@ -17,18 +18,19 @@ data Piece = Piece {
 -- Use 16384 for block size
 
 -- initialize a piece
---genPiece index size hash = do
---    complete <- newIORef False
---    blocks <- genEmptyBlockArray (size `div` 16384)
---    bitfield <- newArray (0, (size `div` 16384) - 1) False
---    return Piece {
---        pcComplete = complete,
---        pcIndex = idx,
---        pcSize = size,
---        pcHash = hash,
---        pcBlocks = blocks,
---        pcBitfield = bitfield
---    }
+genPiece :: Int -> C.ByteString -> Int -> IO Piece
+genPiece size hash index = do
+    complete <- newIORef False
+    blocks <- genEmptyBlockArray (size `div` 16384)
+    bitfield <- newArray (0, (size `div` 16384) - 1) False
+    return Piece {
+        pDone = complete,
+        pIndex = index,
+        pSize = size,
+        pBlocks = blocks,
+        pHash = hash,
+        pBitfield = bitfield
+    }
 
 genEmptyBlockArray :: Int -> IO (IOArray Int B.ByteString)
 genEmptyBlockArray blocks = newArray (0, blocks - 1) B.empty
