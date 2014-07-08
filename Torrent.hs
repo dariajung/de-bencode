@@ -24,12 +24,14 @@ import Config
 import Bencode
 import Protocol
 import Piece
+import Initiator
 
 data Torrent = Torrent {
     metadata :: Metadata, -- the metadata for a torrent
     inactivePeers :: IORef [InactivePeer], -- the list of inactive peers
     activePeers :: IORef [ActivePeer], -- the list of active peers
-    pieces ::  IOArray Int Piece -- the pieces for this torrent
+    pieces ::  IOArray Int Piece, -- the pieces for this torrent
+    initiator :: Initiator
 }
 
 -- generate torrent data type
@@ -41,96 +43,35 @@ generateTorrent = do
     inactv <- newIORef []
     actv <- newIORef [] 
     pieceArr <- newListArray (0, (read (pieceCount metainfo) :: Int) - 1) lPieces
+    _initiator <- defaultInitiator
     return Torrent {
         metadata = metainfo,
         inactivePeers = inactv,
         activePeers = actv,
-        pieces = pieceArr
+        pieces = pieceArr,
+        initiator = _initiator
     }
 
 -- start everything off
 start = do
     torrent <- generateTorrent
-    initiateHandshake torrent
+    peers <- genInactivePeers
+    sequence $ map (forkIO . initiateHandshake torrent) peers -- fork peers
+    return ()
 
-initiateHandshake torrent = do
-    inactivePeers <- genInactives torrent
-    let aPeer = head inactivePeers
-    putStrLn $ "Connecting to " ++ (Peer.ip aPeer) ++ ":" ++ (show $ Peer.port aPeer)
-    handle <- Network.connectTo (Peer.ip aPeer) (Network.PortNumber $ fromIntegral $ Peer.port aPeer)
+initiateHandshake torrent peer = do
+    putStrLn $ "Connecting to " ++ (Peer.ip peer) ++ ":" ++ (show $ Peer.port peer)
+    handle <- Network.connectTo (Peer.ip peer) (Network.PortNumber $ fromIntegral $ Peer.port peer)
     hSetBuffering handle LineBuffering
-    putStrLn $ "Sending handshake to " ++ (Peer.ip aPeer) ++ ":" ++ (show $ Peer.port aPeer)
+    putStrLn $ "Sending handshake to " ++ (Peer.ip peer) ++ ":" ++ (show $ Peer.port peer)
     sendHandshake handle
     activePeer <- recvHandshake (metadata torrent) handle
     addActivePeer activePeer (activePeers torrent)
-    recvMessage handle
+    loopRecvMsg torrent activePeer
 
--- form initial request URL to tracker
-getRequestURL = do
-    metaData <- getMetaData
-    hash <- getHash 
-    {-- need to figure out how to capture state?
-        so for time being, hardcoding peer_id
-        or just put into a config file? --}
-    let urlEncodedHash = addPercents $ toHex hash
-        params = Network.HTTP.urlEncodeVars 
-                [("peer_id", "-HT0001-560535105852"), 
-                ("left", (tLen metaData)), 
-                ("port", "6882"),
-                ("compact", "1"),
-                ("uploaded", "0"),
-                ("downloaded", "0"),
-                ("event", "started")]
-    return $ (announce metaData) ++ "?" ++ "info_hash=" ++ urlEncodedHash ++ "&" ++ params
-
--- get back response from tracker
--- move to diff module
-getRawResponse = do
-    url <- getRequestURL
-    Network.HTTP.simpleHTTP (Network.HTTP.getRequest url) >>= fmap (take 1000) . Network.HTTP.getResponseBody
-
--- Instead of dict, perhaps should create tracker response 
--- data type?
--- move to diff module
-trackerResponseToDict = do
-    response <- getRawResponse
-    (BDict dict) <- getBValue "string" response
-    let complete = BStr (C.pack "complete")
-        incomplete = BStr (C.pack "incomplete")
-        intvl = BStr (C.pack "interval")
-        prs = BStr (C.pack "peers")
-        (BInt seeders) = dict M.! complete
-        (BInt leechers) = dict M.! incomplete
-        (BInt interval) = dict M.! intvl
-        (BStr peers) = dict M.! prs
-    return $ M.fromList [("complete", show seeders), 
-                        ("incomplete", show leechers), 
-                        ("interval", show interval),
-                        ("peers", C.unpack peers)]
-
--- generate a list of inactive peers
-genInactives :: t -> IO [InactivePeer]
-genInactives torrent = do
-    peers <- getPeerData
-    let create ((ipAddr, portNum):xs) = InactivePeer {Peer.ip = ipAddr, Peer.port = fromIntegral portNum} : create xs
-        peerL = create peers
-    return peerL
-
--- Get peer data from the tracker response
-getPeerData :: IO [([Char], Integer)]
-getPeerData = do
-    dict <- trackerResponseToDict
-    return $ parseBinaryModel (dict M.! "peers")
-
--- parse peer data presented in binary model
-parseBinaryModel :: [Char] -> [([Char], Integer)]
-parseBinaryModel peerStr = 
-    let dList = chunksOf 6 $ map show (B.unpack $ C.pack peerStr)
-        digest [] = []
-        digest (x:xs) = (L.intercalate "." $ take 4 x, 
-            (read (x !! 4) :: Integer) * 256 + 
-            (read (x !! 5) :: Integer)) : digest xs
-        in (digest dList)
+loopRecvMsg torrent peer = forever $ do
+    (msg, payload) <- recvMessage (pHandle peer)
+    print msg
 
 -- parseMessage which gives (Msg, [C.ByteString])
 --processMessage (msgType, payload) =
