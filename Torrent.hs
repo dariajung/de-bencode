@@ -48,6 +48,7 @@ generateTorrent = do
         pieces = pieceArr
     }
 
+-- start everything off
 start = do
     torrent <- generateTorrent
     initiateHandshake torrent
@@ -108,6 +109,7 @@ trackerResponseToDict = do
                         ("peers", C.unpack peers)]
 
 -- generate a list of inactive peers
+genInactives :: t -> IO [InactivePeer]
 genInactives torrent = do
     peers <- getPeerData
     let create ((ipAddr, portNum):xs) = InactivePeer {Peer.ip = ipAddr, Peer.port = fromIntegral portNum} : create xs
@@ -121,6 +123,7 @@ getPeerData = do
     return $ parseBinaryModel (dict M.! "peers")
 
 -- parse peer data presented in binary model
+parseBinaryModel :: [Char] -> [([Char], Integer)]
 parseBinaryModel peerStr = 
     let dList = chunksOf 6 $ map show (B.unpack $ C.pack peerStr)
         digest [] = []
