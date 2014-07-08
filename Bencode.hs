@@ -20,7 +20,6 @@ import Text.Printf (printf)
 import qualified System.Random as Random
 import Data.List.Split (chunksOf)
 import qualified Config as Config
---import Metadata
 
 {- Bencode supports four different types of values:
     integers

@@ -23,18 +23,24 @@ import Protocol
 import Piece
 
 data Torrent = Torrent {
-    metadata :: Metadata,
-    inactivePeers :: IORef [InactivePeer],
-    activePeers :: IORef [ActivePeer],
-    pieces ::  IOArray Int Piece 
+    metadata :: Metadata, -- the metadata for a torrent
+    inactivePeers :: IORef [InactivePeer], -- the list of inactive peers
+    activePeers :: IORef [ActivePeer], -- the list of active peers
+    pieces ::  IOArray Int Piece -- the pieces for this torrent
 }
 
--- take in torrent file name 
--- and generate torrent data type
---generateTorrent str = 
+-- generate torrent data type
+generateTorrent = do 
+    metainfo <- getMetaData
+    return Torrent {
+        metadata = metainfo,
+        inactivePeers = IORef [],
+        activePeers = IORef [],
+        pieces = 
+    }
 
 -- move to diff module
-main = do
+main torrent = do
     peerInfo <- getPeerData
     let (ipAddr, portNum) = head peerInfo
     putStrLn $ "Connecting to " ++ (ipAddr) ++ ":" ++ (show $ portNum)
@@ -43,7 +49,7 @@ main = do
     putStrLn $ "Sending handshake to " ++ (ipAddr) ++ ":" ++ (show $ portNum)
     sendHandshake handle
     activePeer <- recvHandshake handle
-    recvMessage handle
+    recvMessage torrent handle
 
 -- form initial request URL to tracker
 getRequestURL = do

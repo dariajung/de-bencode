@@ -25,9 +25,9 @@ sendHandshake handle = do
     handshake <- generateHandshake
     C.hPutStr handle handshake
 
-recvHandshake :: Handle -> IO ActivePeer
-recvHandshake handle = do
-    metaData <- getMetaData
+recvHandshake :: MetaData -> Handle -> IO ActivePeer
+recvHandshake torrent handle = do
+    metaData <- metadata torrent
     pStrLen <- B.hGet handle 1
     pStr <- B.hGet handle (fromIntegral $ (B.unpack pStrLen) !! 0)
     reserved <- B.hGet handle 8

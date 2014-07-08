@@ -10,8 +10,9 @@ import qualified Config as Config
 data Metadata = Metadata {
     announce :: String, -- announce URL
     tLen :: String, -- Torrent length
-    pieceCount :: String -- total number of pieces
-    --info :: BValue
+    pieceCount :: String, -- total number of pieces
+    pieceLength :: String, -- the length of a single piece
+    info :: BValue -- the value of the info dictionary
 
 } deriving (Show)
 
@@ -35,7 +36,7 @@ isMult = do
 -- parse torrents with multiple files
 parseDataMultiple :: IO Metadata
 parseDataMultiple = do
-    (BDict dict) <- (getBValue "file" "torrents/karl_marx.torrent")
+    (BDict dict) <- (getBValue "file" Config.torrent)
     let announce = BStr (pack "announce")
         info = BStr (pack "info")
         f = BStr (pack "files")
@@ -49,7 +50,9 @@ parseDataMultiple = do
     return Metadata {
         announce = unpack announceUrl,
         tLen = show totalLength,
-        pieceCount = show (ceiling $ (fromIntegral totalLength) / (fromIntegral pieceLen))
+        pieceCount = show (ceiling $ (fromIntegral totalLength) / (fromIntegral pieceLen)),
+        pieceLength = show $ fromIntegral pieceLen,
+        info = BDict infoDict
     }
 
 -- parse torrents with single files
@@ -67,5 +70,7 @@ parseDataSingle = do
     return Metadata {
         announce = unpack announceUrl,
         tLen = show _length,
-        pieceCount = show $ ceiling ((fromIntegral _length) / (fromIntegral pieceLen))
+        pieceCount = show $ ceiling ((fromIntegral _length) / (fromIntegral pieceLen)),
+        pieceLength = show $ fromIntegral pieceLen,
+        info = BDict infoDict
     }  
