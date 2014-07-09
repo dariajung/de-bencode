@@ -125,7 +125,7 @@ writeBEByteStringInt x = B.concat $ Lz.toChunks $ runPut $ putWord32be $ fromInt
 writeDecByteInt :: Integral a => a -> C.ByteString
 writeDecByteInt x = B.singleton (fromIntegral x)
 
-
+-- translate bytes to binary
 toBinary 0 = [0, 0, 0, 0, 0, 0, 0, 0]
 toBinary n = ensureEight $ reverse (helper n)
 

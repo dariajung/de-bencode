@@ -30,10 +30,18 @@ import Initiator
 -- in big endian
 bitfield = C.pack "\255\23\255\155\5\232\255\255\255\255\135\255\255\255\255\255\255\255\255\191\255\255\255\253\255\255\255\191\255\255\255\255\255\255\255\255\254\255\255\251\255\255\255\254\255\255\255\255\255\251\255\255\255\255\255\255\255\255\255\255\255\255\255\255\255\255\255\255\255\255\223\255\255\255\255\255\255\255\255\255\255\255\255\255\255\255\255\255\255\253\255\255\255\255\255\255\255\223\255\255\255\255\255\255\255\223\223\DEL\255\255\255\255\255\255\255\223\255\255\255\255\255\255\255\255\253\255\255\255\255\255\255\255\255\255\239\255\255\255\255\255\253\255\223\255\255\255\255\255\255\255\255\255\255\253\255\255\255\239\255\255\255\255\251\255\255\255\255\255\255\255\251\255\255\255\191\255\255\255\255\254\255\255\255\255\255\255\NUL"
 
--- translate a bitfield to an array of bits (0s and 1s)
--- bitfield is not big endian
+{-- 
+    translate a bitfield to an array of bits (0s and 1s) 
+    and then translate that to an array of Bools
+    bitfield is not big endian 
+--}
 translateBF bitfield = do
-    L.concat $ L.init $ map toBinary $ map (fromEnum) $ B.unpack bitfield
+    return $ binaryToBool $ L.concat $ L.init $ map toBinary $ map (fromEnum) $ B.unpack bitfield
+
+binaryToBool (x:xs)
+    | x == 1        = True : binaryToBool xs
+    | otherwise     = False : binaryToBool xs
+binaryToBool [] = []
 
 data Torrent = Torrent {
     metadata :: Metadata, -- the metadata for a torrent
@@ -143,4 +151,9 @@ processMessage torrent peer (msgType, payload) =
                     sendMessage (pHandle peer) MsgInterested [B.empty]
 
         MsgBitfield -> do
-            print payload
+            binary <- translateBF $ head payload
+            let zipped = zip [0..(read (pieceCount $ metadata torrent) :: Int) - 1] binary
+            -- update peer bitfield
+            sequence $ map (\(i, e) -> do { writeArray (pBitField peer) i e }) zipped
+            return ()
+
