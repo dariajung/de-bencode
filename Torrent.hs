@@ -155,5 +155,8 @@ processMessage torrent peer (msgType, payload) =
             let zipped = zip [0..(read (pieceCount $ metadata torrent) :: Int) - 1] binary
             -- update peer bitfield
             sequence $ map (\(i, e) -> do { writeArray (pBitField peer) i e }) zipped
+            -- need to cross reference against own bitfield and request pieces peer has
+            -- but i don't have
+
             return ()
 
