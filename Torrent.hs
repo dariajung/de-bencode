@@ -27,6 +27,14 @@ import Protocol
 import Piece
 import Initiator
 
+-- in big endian
+bitfield = C.pack "\255\23\255\155\5\232\255\255\255\255\135\255\255\255\255\255\255\255\255\191\255\255\255\253\255\255\255\191\255\255\255\255\255\255\255\255\254\255\255\251\255\255\255\254\255\255\255\255\255\251\255\255\255\255\255\255\255\255\255\255\255\255\255\255\255\255\255\255\255\255\223\255\255\255\255\255\255\255\255\255\255\255\255\255\255\255\255\255\255\253\255\255\255\255\255\255\255\223\255\255\255\255\255\255\255\223\223\DEL\255\255\255\255\255\255\255\223\255\255\255\255\255\255\255\255\253\255\255\255\255\255\255\255\255\255\239\255\255\255\255\255\253\255\223\255\255\255\255\255\255\255\255\255\255\253\255\255\255\239\255\255\255\255\251\255\255\255\255\255\255\255\251\255\255\255\191\255\255\255\255\254\255\255\255\255\255\255\NUL"
+
+-- translate a bitfield to an array of bits (0s and 1s)
+-- bitfield is not big endian
+translateBF bitfield = do
+    L.concat $ L.init $ map toBinary $ map (fromEnum) $ B.unpack bitfield
+
 data Torrent = Torrent {
     metadata :: Metadata, -- the metadata for a torrent
     inactivePeers :: IORef [InactivePeer], -- the list of inactive peers
@@ -112,9 +120,12 @@ processMessage torrent peer (msgType, payload) =
             writeIORef (pWanted peer) index
 
             piece <- readArray (pieces torrent) index
-            done <- readIORef pDone piece
-            amInterested <- readIORef pAmInterested peer 
-            choked <- readIORef pChoking peer 
+            done <- readIORef $ pDone piece
+            amInterested <- readIORef $ pAmInterested peer 
+            choked <- readIORef $ pChoking peer 
+
+            pieceBitfield <- getElems $ pBitfield piece
+            let begin = fromJust $ L.elemIndex False pieceBitfield
 
             {-- 
                 if the piece hasn't finished downloading,
@@ -125,8 +136,11 @@ processMessage torrent peer (msgType, payload) =
             --}
             if (not done && amInterested && not choked) 
                 then do
-                    sendMessage (pHandle peer) (MsgRequest) $ map writeBEByteStringInt [indexWant, begin * 16384, 16384]
+                    sendMessage (pHandle peer) (MsgRequest) $ map writeBEByteStringInt [index, begin * 16384, 16384]
                 else do
                     writeIORef (pAmInterested peer) True
                     writeIORef (pWanted peer) index
                     sendMessage (pHandle peer) MsgInterested [B.empty]
+
+        MsgBitfield -> do
+            print payload

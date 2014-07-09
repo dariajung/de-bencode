@@ -1,3 +1,3 @@
 module Config where
 
-torrent = "torrents/ubuntu.torrent"
+torrent = "torrents/tom.torrent"
